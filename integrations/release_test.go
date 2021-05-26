@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"code.gitea.io/gitea/models"
 	"code.gitea.io/gitea/modules/setting"
@@ -66,10 +65,27 @@ func TestViewReleases(t *testing.T) {
 
 	session := loginUser(t, "user2")
 	req := NewRequest(t, "GET", "/user2/repo1/releases")
-	session.MakeRequest(t, req, http.StatusOK)
+	rsp := session.MakeRequest(t, req, http.StatusOK)
 
-	// if CI is to slow this test fail, so lets wait a bit
-	time.Sleep(time.Millisecond * 100)
+	htmlDoc := NewHTMLParser(t, rsp.Body)
+
+	// Test compare dropdowns tags for each "release" (Draft Release and v1.1)
+	compareElements := htmlDoc.Find(".item.choose.reference")
+	tagNames := make([]string, 0, 5)
+	compareUrls := make([]string, 0, 5)
+	// Iterate each compare dropdown
+	compareElements.Each(func(i int, s *goquery.Selection) {
+		tag := s.Find(".item.tag")
+		tagNames = append(tagNames, tag.Text())
+		dataUrl, _ := tag.Attr("data-url")
+		compareUrls = append(compareUrls, dataUrl)
+	})
+
+	// Text for both selectors should be "v1.1" (since it is the only tag)
+	assert.EqualValues(t, []string{"v1.1", "v1.1"}, tagNames)
+	// Compare for first selector should be "v1.1" against "master" since it is a draft release
+	// Compare for second selector should be "v1.1" since "v1.1" is the only tag
+	assert.EqualValues(t, []string{"/user2/repo1/compare/v1.1...master", "/user2/repo1/compare/v1.1...v1.1"}, compareUrls)
 }
 
 func TestViewReleasesNoLogin(t *testing.T) {
@@ -86,6 +102,36 @@ func TestCreateRelease(t *testing.T) {
 	createNewRelease(t, session, "/user2/repo1", "v0.0.1", "v0.0.1", false, false)
 
 	checkLatestReleaseAndCount(t, session, "/user2/repo1", "v0.0.1", i18n.Tr("en", "repo.release.stable"), 3)
+
+	req := NewRequest(t, "GET", "/user2/repo1/releases")
+	rsp := session.MakeRequest(t, req, http.StatusOK)
+
+	htmlDoc := NewHTMLParser(t, rsp.Body)
+
+	// Test compare dropdowns tags for each "release" (New "v0.0.1" release, Draft Release, and "v1.1" release)
+	compareElements := htmlDoc.Find(".item.choose.reference")
+	tagNames := make([][]string, 0, 5)
+	compareUrls := make([][]string, 0, 5)
+	// Iterate each compare dropdown
+	compareElements.Each(func(i int, s *goquery.Selection) {
+		tags := s.Find(".item.tag")
+		tempTagNames := make([]string, 0, 5)
+		tempCompareUrls := make([]string, 0, 5)
+		// Iterate each tag ref for each compare dropdown
+		tags.Each(func(ii int, ss *goquery.Selection) {
+			tempTagNames = append(tempTagNames, ss.Text())
+			dataUrl, _ := ss.Attr("data-url")
+			tempCompareUrls = append(tempCompareUrls, dataUrl)
+		})
+		tagNames = append(tagNames, tempTagNames)
+		compareUrls = append(compareUrls, tempCompareUrls)
+	})
+
+	assert.EqualValues(t, [][]string{{"v0.0.1", "v1.1"}, {"v0.0.1", "v1.1"}, {"v0.0.1", "v1.1"}}, tagNames)
+	assert.EqualValues(t, [][]string{
+		{"/user2/repo1/compare/v0.0.1...v0.0.1", "/user2/repo1/compare/v1.1...v0.0.1"},
+		{"/user2/repo1/compare/v0.0.1...master", "/user2/repo1/compare/v1.1...master"},
+		{"/user2/repo1/compare/v0.0.1...v1.1", "/user2/repo1/compare/v1.1...v1.1"}}, compareUrls)
 }
 
 func TestCreateReleasePreRelease(t *testing.T) {

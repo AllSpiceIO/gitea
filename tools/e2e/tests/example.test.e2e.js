@@ -18,7 +18,5 @@ test('Test Register Form', async ({page}, workerInfo) => {
   await page.click('form button.ui.green.button:visible');
   // Make sure we routed to the home page. Else login failed.
   await expect(page.url()).toBe(`${workerInfo.project.use.baseURL}/`);
-  // Uncomment to see visual testing
-  //await expect(page).toHaveScreenshot({ timeout: 20000, mask: [page.locator('footer div.ui.left')] });
-  //await page.screenshot({ path: `tools/e2e/screenshots/${workerInfo.title}-${workerInfo.project.name}.png` });
+  await expect(page).toHaveScreenshot({ timeout: 20000, mask: [page.locator('footer div.ui.left')] });
 });

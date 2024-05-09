@@ -126,10 +126,6 @@ func loadOAuth2From(rootCfg ConfigProvider) {
 		OAuth2.Enabled = sec.Key("ENABLE").MustBool(OAuth2.Enabled)
 	}
 
-	if !OAuth2.Enabled {
-		return
-	}
-
 	jwtSecretBase64 := loadSecret(sec, "JWT_SECRET_URI", "JWT_SECRET")
 
 	if !filepath.IsAbs(OAuth2.JWTSigningPrivateKeyFile) {

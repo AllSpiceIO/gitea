@@ -31,6 +31,18 @@ JWT_SECRET = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB
 	expected, _ := generate.DecodeJwtSecretBase64("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")
 	assert.Len(t, actual, 32)
 	assert.EqualValues(t, expected, actual)
+
+	// ensure that we load the config even if oauth2 is disabled
+	cfg, _ = NewConfigProviderFromData(`
+[oauth2]
+ENABLED = false
+JWT_SECRET = CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+`)
+	loadOAuth2From(cfg)
+	actual = GetGeneralTokenSigningSecret()
+	expected, _ = generate.DecodeJwtSecretBase64("CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC")
+	assert.Len(t, actual, 32)
+	assert.EqualValues(t, expected, actual)
 }
 
 func TestOauth2DefaultApplications(t *testing.T) {
